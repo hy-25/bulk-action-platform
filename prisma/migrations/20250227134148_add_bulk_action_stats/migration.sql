@@ -1,0 +1,4 @@
+-- AlterTable
+ALTER TABLE `BulkAction` ADD COLUMN `failedCount` INTEGER NOT NULL DEFAULT 0,
+    ADD COLUMN `skippedCount` INTEGER NOT NULL DEFAULT 0,
+    ADD COLUMN `successCount` INTEGER NOT NULL DEFAULT 0;

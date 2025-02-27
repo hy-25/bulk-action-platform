@@ -1,0 +1,30 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "mysql"
+  url      = env("DATABASE_URL")
+}
+
+model Contact {
+  id     String  @id @default(uuid())
+  name   String
+  email  String  @unique
+  age    Int?
+  status String
+}
+
+
+model BulkAction {
+  id          String   @id @default(uuid())
+  entity      String
+  action      String
+  status      String   // Pending, In Progress, Completed, Failed
+  successCount Int     @default(0)
+  failedCount  Int     @default(0)
+  skippedCount Int     @default(0)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+}
+
