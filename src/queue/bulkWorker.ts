@@ -2,13 +2,14 @@ import { Worker, Job } from "bullmq";
 import { PrismaClient } from "@prisma/client";
 import connection from "./bulkQueue";
 import logger from "../utils/logger"; // Import logger
+import { BULK_ACTION_JOB, BULK_ACTION_QUEUE } from "./constants";
 
 const prisma = new PrismaClient();
 
 logger.info("Starting Bulk Action Worker...");
 
 const bulkWorker = new Worker(
-  "bulk-actions",
+    BULK_ACTION_QUEUE,
   async (job: Job) => {
     const { bulkActionId, entity, action, data } = job.data;
 
