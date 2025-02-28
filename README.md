@@ -28,14 +28,14 @@ To install the Bulk Action Platform, follow these steps:
 ## Usage
 To start the platform, run the following command:
 ```bash
-npm start
+npm run dev
 ```
 This will launch the application on `http://localhost:3000`.
 
 ## API Documentation
 The Bulk Action Platform provides a comprehensive API to interact with the system. Below is the postman collection containing endpoints:
 
-[text](https://api.postman.com/collections/31935989-e87de680-3edb-4953-9a84-d2a2f5f6f3c6?access_key=PMAT-01JN5RXYGGZ9NHN0CQN5TQDNSV)
+[Postman Collection](https://api.postman.com/collections/31935989-e87de680-3edb-4953-9a84-d2a2f5f6f3c6?access_key=PMAT-01JN5RXYGGZ9NHN0CQN5TQDNSV)
 
 ## Database Setup
 The platform requires SQL and Redis databases. Follow these steps to set them up:
