@@ -24,6 +24,7 @@ model BulkAction {
   successCount Int     @default(0)
   failedCount  Int     @default(0)
   skippedCount Int     @default(0)
+  remainingBatches Int @default(0) // New field for tracking batch completion
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 }

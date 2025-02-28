@@ -1,6 +1,6 @@
 import redisConnection from "../queue/bulkQueue";
 
-const RATE_LIMIT = 10000; // 10k events per minute
+const RATE_LIMIT = 100000; // 10k events per minute
 
  async function checkRateLimit(accountId: string) {
   const key = `rate_limit:${accountId}`;

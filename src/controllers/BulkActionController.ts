@@ -13,6 +13,12 @@ class BulkActionController {
   static async createBulkAction(req: Request, res: Response) {
     try {
       const { entity, action, data , accountId } = req.body;
+    
+    if(accountId === null || accountId === undefined){
+        res.status(400).json({
+            error: "Account ID is required"
+        })
+    }
 
       if (!await checkRateLimit(accountId)) {
         res.status(429).json({ error: "Rate limit exceeded. Try again later." });
@@ -50,9 +56,20 @@ class BulkActionController {
 
   // List all bulk actions
   static async listBulkActions(req: Request, res: Response) {
+
+    const { status } = req.query;
+
+    const filter: any = {};
+    if (status) {
+      filter.status = String(status);
+    }
+
+
     try {
       const bulkActions = await prisma.bulkAction.findMany({
+        where: filter,
         orderBy: { createdAt: "desc" },
+        take: 1000,
       });
 
       logger.info(`Fetched ${bulkActions.length} bulk actions`);

@@ -1,8 +1,10 @@
-import { Worker, Job } from "bullmq";
+import { Worker, Job, Queue } from "bullmq";
 import { PrismaClient } from "@prisma/client";
 import connection from "./bulkQueue";
-import logger from "../utils/logger"; // Import logger
-import { BULK_ACTION_JOB, BULK_ACTION_QUEUE } from "./constants";
+import logger from "../utils/logger";
+import { BATCH_PROCESSING_QUEUE, BULK_ACTION_QUEUE, PROCESS_BATCH_JOB } from "./constants";
+const batchProcessingQueue = new Queue(BATCH_PROCESSING_QUEUE, { connection });
+const BATCH_SIZE = 500; 
 
 const prisma = new PrismaClient();
 
@@ -13,59 +15,32 @@ const bulkWorker = new Worker(
   async (job: Job) => {
     const { bulkActionId, entity, action, data } = job.data;
 
+
+    const totalBatches = Math.ceil(data.length / BATCH_SIZE);
+
+    logger.info(`total batches ${totalBatches}`)
+
     logger.info(`Processing Bulk Action: ${bulkActionId}, Entity: ${entity}, Action: ${action}`);
 
     // Update status to "In Progress"
     await prisma.bulkAction.update({
       where: { id: bulkActionId },
-      data: { status: "In Progress" },
+      data: { status: "In Progress" , remainingBatches : totalBatches},
     });
 
-    let successCount = 0;
-    let failedCount = 0;
-    let skippedCount = 0;
 
-    for (const item of data) {
-      try {
-        logger.info(`Updating contact: ${item.email} with ${JSON.stringify(item.updates)}`);
-
-        const updated = await prisma.contact.updateMany({
-          where: { email: item.email },
-          data: item.updates,
+    for (let i = 0; i < data.length; i += BATCH_SIZE) {
+        const batch = data.slice(i, i + BATCH_SIZE);
+        
+        // Add each batch as a separate job
+        await batchProcessingQueue.add(PROCESS_BATCH_JOB, {
+          bulkActionId,
+          batch,
+          entity
         });
-
-        if (updated.count > 0) {
-          successCount++;
-        } else {
-          skippedCount++; // Email not found
-          logger.warn(`Skipped update: No contact found with email ${item.email}`);
-        }
-      } catch (error) {
-        failedCount++;
-        if (error instanceof Error) {
-          logger.error(`Failed to update ${item.email}: ${error.message}`);
-        } else {
-          logger.error(`Failed to update ${item.email}: ${JSON.stringify(error)}`);
-        }
       }
-    }
 
-    // Update the bulk action with final counts
-    await prisma.bulkAction.update({
-      where: { id: bulkActionId },
-      data: {
-        status: "Completed",
-        successCount,
-        failedCount,
-        skippedCount,
-      },
-    });
-
-    logger.info(
-      `Bulk Action Completed: ${bulkActionId} | Success: ${successCount}, Failed: ${failedCount}, Skipped: ${skippedCount}`
-    );
-
-    return { successCount, failedCount, skippedCount };
+      logger.info(`Bulk action ${bulkActionId} divided into ${Math.ceil(data.length / BATCH_SIZE)} batches`);
   },
   { connection }
 );
