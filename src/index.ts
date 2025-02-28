@@ -7,7 +7,8 @@ import logger from "./utils/logger";
 import requestLogger from "./middleware/loggerMiddleware";
 import redisConnection from "./queue/bulkQueue";
 import errorHandler from "./middleware/errorHandler";
-
+import './routes/logs';
+import logs from "./routes/logs";
 dotenv.config();
 
 const app = express();
@@ -18,6 +19,8 @@ const PORT = process.env.PORT || 3000;
 
 // API Routes
 app.use("/api", bulkActionRoutes);
+
+app.use("/api",logs);
 
 // Health Check
 app.get("/", (_, res) => {
