@@ -1,12 +1,21 @@
 import { Request, Response, NextFunction } from "express";
-import logger from "../utils/logger"; // Import Winston logger
+import logger from "../utils/logger";
+import AppError from "../utils/appError";
 
-const errorHandler = (err: any, req: Request, res: Response, next: NextFunction) => {
-  logger.error(`Error: ${err.message} - Path: ${req.originalUrl}`);
+const errorHandler = (err: Error, req: Request, res: Response, next: NextFunction): void => {
+  let statusCode = 500;
+  let message = "Internal Server Error";
 
-  res.status(err.statusCode || 500).json({
+  if (err instanceof AppError) {
+    statusCode = err.statusCode;
+    message = err.message;
+  }
+
+  logger.error(`Error: ${message} - Path: ${req.originalUrl}`);
+
+  res.status(statusCode).json({
     success: false,
-    message: err.message || "Internal Server Error",
+    message,
   });
 };
 

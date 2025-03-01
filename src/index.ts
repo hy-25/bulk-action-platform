@@ -5,10 +5,10 @@ import "./queue/bulkWorker";
 import "./queue/batchWorker";
 import logger from "./utils/logger";
 import requestLogger from "./middleware/loggerMiddleware";
-import redisConnection from "./queue/bulkQueue";
 import errorHandler from "./middleware/errorHandler";
 import './routes/logs';
-import logs from "./routes/logs";
+import logRoutes from "./routes/logs";
+import redisClient from "./config/redisClient";
 dotenv.config();
 
 const app = express();
@@ -18,9 +18,9 @@ app.use(requestLogger);
 const PORT = process.env.PORT || 3000;
 
 // API Routes
-app.use("/api", bulkActionRoutes);
+app.use("/api/bulk-actions", bulkActionRoutes);
 
-app.use("/api",logs);
+app.use("/api/logs",logRoutes);
 
 // Health Check
 app.get("/", (_, res) => {
@@ -30,7 +30,7 @@ app.get("/", (_, res) => {
 
 process.on("SIGINT", async () => {
     try {
-        await redisConnection.quit(); 
+        await redisClient.quit(); 
         logger.info("All connections closed. Exiting...");
         process.exit(0);
       } catch (error) {

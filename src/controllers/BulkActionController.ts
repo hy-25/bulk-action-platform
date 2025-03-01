@@ -1,135 +1,55 @@
-import { PrismaClient } from "@prisma/client";
-import { Request, Response } from "express";
-import { bulkActionQueue } from "../queue/bulkQueue";
+import { Request, Response, NextFunction } from "express";
 import logger from "../utils/logger";
-import { BULK_ACTION_JOB } from "../queue/constants";
-import checkRateLimit from "../utils/rate-limit";
-
-
-const prisma = new PrismaClient();
+import AppError from "../utils/appError";
+import * as bulkActionService from "../services/bulkActionService";
 
 class BulkActionController {
-  // Create a new bulk action
-  static async createBulkAction(req: Request, res: Response) {
+  static async createBulkAction(req: Request, res: Response, next: NextFunction): Promise<void> {
     try {
-      const { entity, action, data , accountId } = req.body;
-    
-    if(accountId === null || accountId === undefined){
-        res.status(400).json({
-            error: "Account ID is required"
-        })
-    }
+      const { entity, action, data, accountId } = req.body;
 
-      if (!await checkRateLimit(accountId)) {
-        res.status(429).json({ error: "Rate limit exceeded. Try again later." });
-        return 
+      if (!entity || !action || !data || !Array.isArray(data) || !accountId) {
+        throw new AppError("Invalid request payload. Entity, action, data, and accountId are required.", 400);
       }
 
-      if (!entity || !action || !data || !Array.isArray(data)) {
-        logger.warn("Invalid request payload for bulk action");
-        res.status(400).json({ error: "Invalid request payload" });
-        return ;
-      }
-
-      // Store the bulk action in the database
-      const bulkAction = await prisma.bulkAction.create({
-        data: { entity, action, status: "Pending" },
-      });
-
-      // Add job to the queue
-      await bulkActionQueue.add(BULK_ACTION_JOB, {
-        bulkActionId: bulkAction.id,
-        entity,
-        action,
-        data,
-      });
-
-      logger.info(`Bulk action created: ${bulkAction.id}`);
+      const bulkAction = await bulkActionService.createBulkAction(entity, action, data, accountId);
       res.status(201).json({ message: "Bulk action created", bulkAction });
-      return 
     } catch (error) {
-      logger.error(`Error creating bulk action: ${(error as Error).message}`);
-       res.status(500).json({ error: "Internal Server Error" });
-       return;
+      next(error); // Pass to errorHandler middleware
     }
   }
 
-  // List all bulk actions
-  static async listBulkActions(req: Request, res: Response) {
-
-    const { status } = req.query;
-
-    const filter: any = {};
-    if (status) {
-      filter.status = String(status);
-    }
-
-
+  static async listBulkActions(req: Request, res: Response, next: NextFunction): Promise<void> {
     try {
-      const bulkActions = await prisma.bulkAction.findMany({
-        where: filter,
-        orderBy: { createdAt: "desc" },
-        take: 1000,
-      });
-
-      logger.info(`Fetched ${bulkActions.length} bulk actions`);
+      const { status } = req.query as { status?: string };
+      const bulkActions = await bulkActionService.listBulkActions(status);
       res.json({ bulkActions });
-      return 
     } catch (error) {
-      logger.error(`Error fetching bulk actions: ${(error as Error).message}`);
-       res.status(500).json({ error: "Internal Server Error" });
-       return
+      next(error);
     }
   }
 
-  // Get bulk action details
-  static async getBulkAction(req: Request, res: Response) {
+  static async getBulkAction(req: Request, res: Response, next: NextFunction): Promise<void> {
     try {
-      const bulkAction = await prisma.bulkAction.findUnique({
-        where: { id: req.params.id },
-      });
-
+      const bulkAction = await bulkActionService.getBulkAction(req.params.id);
       if (!bulkAction) {
-        logger.warn(`Bulk action not found: ${req.params.id}`);
-         res.status(404).json({ error: "Bulk action not found" });
-         return
+        throw new AppError("Bulk action not found", 404);
       }
-
-      logger.info(`Fetched bulk action details: ${bulkAction.id}`);
-       res.json({ bulkAction });
-       return
+      res.json({ bulkAction });
     } catch (error) {
-      logger.error(`Error fetching bulk action: ${(error as Error).message}`);
-       res.status(500).json({ error: "Internal Server Error" });
-       return
+      next(error);
     }
   }
 
-  // Get bulk action stats
-  static async getBulkActionStats(req: Request, res: Response) {
+  static async getBulkActionStats(req: Request, res: Response, next: NextFunction): Promise<void> {
     try {
-      const bulkAction = await prisma.bulkAction.findUnique({
-        where: { id: req.params.id },
-        select: {
-          successCount: true,
-          failedCount: true,
-          skippedCount: true,
-        },
-      });
-
-      if (!bulkAction) {
-        logger.warn(`Bulk action stats not found: ${req.params.id}`);
-         res.status(404).json({ error: "Bulk action not found" });
-         return
+      const stats = await bulkActionService.getBulkActionStats(req.params.id);
+      if (!stats) {
+        throw new AppError("Bulk action stats not found", 404);
       }
-
-      logger.info(`Fetched bulk action stats: ${req.params.id}`);
-       res.json(bulkAction);
-       return
+      res.json(stats);
     } catch (error) {
-      logger.error(`Error fetching bulk action stats: ${(error as Error).message}`);
-       res.status(500).json({ error: "Internal Server Error" });
-       return
+      next(error);
     }
   }
 }
