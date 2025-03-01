@@ -33,7 +33,7 @@ export const createBulkAction = async (entity: string, action: string, data: any
 };
 
 export const listBulkActions = async (status?: string) => {
-  return await bulkActionRepository.listBulkActions(status);
+  return await bulkActionRepository.listBulkActions( 100, status);
 };
 
 export const getBulkAction = async (id: string) => {

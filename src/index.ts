@@ -7,7 +7,7 @@ import logger from "./utils/logger";
 import requestLogger from "./middleware/loggerMiddleware";
 import errorHandler from "./middleware/errorHandler";
 import './routes/logs';
-import logs from "./routes/logs";
+import logRoutes from "./routes/logs";
 import redisClient from "./config/redisClient";
 dotenv.config();
 
@@ -20,7 +20,7 @@ const PORT = process.env.PORT || 3000;
 // API Routes
 app.use("/api/bulk-actions", bulkActionRoutes);
 
-app.use("/api",logs);
+app.use("/api/logs",logRoutes);
 
 // Health Check
 app.get("/", (_, res) => {

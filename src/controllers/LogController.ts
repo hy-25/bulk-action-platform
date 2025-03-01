@@ -5,6 +5,7 @@ import AppError from "../utils/appError";
 class LogController {
   static async getLogs(req: Request, res: Response, next: NextFunction): Promise<void> {
     try {
+
       const query: LogQueryParams = {
         level: req.query.level as string,
         bulkActionId: req.query.bulkActionId as string,

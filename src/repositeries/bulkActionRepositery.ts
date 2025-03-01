@@ -20,12 +20,12 @@ export const findBulkActionById = async (id: string): Promise<BulkAction | null>
   return await prisma.bulkAction.findUnique({ where: { id } });
 };
 
-export const listBulkActions = async (status?: string): Promise<BulkAction[]> => {
+export const listBulkActions = async (limit: number, status?: string ): Promise<BulkAction[]> => {
   const filter = status ? { status } : {};
   return await prisma.bulkAction.findMany({
     where: filter,
     orderBy: { createdAt: "desc" },
-    take: 1000,
+    take: limit,
   });
 };
 
