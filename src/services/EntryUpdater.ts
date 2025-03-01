@@ -1,16 +1,21 @@
-import { PrismaClient } from "@prisma/client";
 import logger from "../utils/logger";
+import * as entityRepository from "../repositeries/entityRepositery";
+import AppError from "../utils/appError";
 
-const prisma = new PrismaClient();
+interface BatchItem {
+  identifier: string; // Unique identifier (e.g., email, id)
+  updates: Record<string, any>; // Data fields to update
+}
 
 class EntityUpdater {
   /**
    * Updates records dynamically based on the entity type.
-   * @param entity - The name of the entity (e.g., "Contact", "Company", etc.)
+   * @param entity - The name of the entity (e.g., "Contact", "Company")
    * @param batch - Array of update objects containing identifiers and update data
+   * @param identifierField - The field used for identifying records (default: "email")
    * @returns { success: number, failed: number, skipped: number }
    */
-  static async updateEntities(entity: string, batch: any[]) {
+  static async updateEntities(entity: string, batch: BatchItem[], identifierField: string = "email") {
     let successCount = 0;
     let failedCount = 0;
     let skippedCount = 0;
@@ -18,30 +23,21 @@ class EntityUpdater {
     try {
       const updatePromises = batch.map(async (item) => {
         try {
-          const model = EntityUpdater.getModel(entity);
-          if (!model) {
-            logger.error(`No model found for entity: ${entity}`);
-            return;
+          if (!item.identifier || !item.updates) {
+            throw new AppError(`Invalid batch item: ${JSON.stringify(item)}`, 400);
           }
 
-          const updated = await model.updateMany({
-            where: { email: item.email }, // Assumes "email" is the unique identifier
-            data: item.updates,
-          });
+          const updated = await entityRepository.updateEntity(entity, identifierField, item.identifier, item.updates);
 
-          if (updated.count > 0) {
+          if (updated > 0) {
             successCount++;
           } else {
             skippedCount++;
-            logger.warn(`Skipped update: No ${entity} found with email ${item.email}`);
+            logger.warn(`Skipped update: No ${entity} found with ${identifierField} = ${item.identifier}`);
           }
         } catch (error) {
           failedCount++;
-          if (error instanceof Error) {
-            logger.error(`Failed to update ${entity} with email ${item.email}: ${error.message}`);
-          } else {
-            logger.error(`Failed to update ${entity} with email ${item.email}: ${JSON.stringify(error)}`);
-          }
+          logger.error(`Failed to update ${entity} with ${identifierField} = ${item.identifier}: ${error instanceof Error ? error.message : JSON.stringify(error)}`);
         }
       });
 
@@ -51,20 +47,6 @@ class EntityUpdater {
     }
 
     return { success: successCount, failed: failedCount, skipped: skippedCount };
-  }
-
-  /**
-   * Maps an entity name to the corresponding Prisma model
-   * @param entity - The entity name (e.g., "Contact", "Company")
-   * @returns The corresponding Prisma model or null if not found
-   */
-  private static getModel(entity: string) {
-    const models: Record<string, any> = {
-      Contact: prisma.contact,
-       // Add more entities here
-    };
-
-    return models[entity] || null;
   }
 }
 

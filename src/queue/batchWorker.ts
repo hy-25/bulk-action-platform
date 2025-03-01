@@ -1,49 +1,40 @@
 import { Worker, Job } from "bullmq";
-import { PrismaClient } from "@prisma/client";
-import connection from "./bulkQueue";
+import redisClient from "../config/redisClient";
 import logger from "../utils/logger";
-import { BATCH_PROCESSING_QUEUE } from "./constants";
+import * as bulkActionRepository from "../repositeries/bulkActionRepositery";
+import { BATCH_PROCESSING_QUEUE } from "../constants/queueConstants";
 import EntityUpdater from "../services/EntryUpdater";
 
-const prisma = new PrismaClient();
 
 const batchWorker = new Worker(
   BATCH_PROCESSING_QUEUE,
   async (job: Job) => {
-    const { bulkActionId, batch , entity } = job.data;
-    logger.info(`Processing batch for Bulk Action: ${bulkActionId}, Records: ${batch.length}`);
+    try {
+      const { bulkActionId, batch, entity } = job.data;
+      logger.info(`Processing batch for Bulk Action: ${bulkActionId}, Records: ${batch.length}`);
 
-    const { success, failed, skipped } = await EntityUpdater.updateEntities(entity, batch);
+      // Process entity updates
+      const { success, failed, skipped } = await EntityUpdater.updateEntities(entity, batch);
 
-    // Update bulk action stats
-    await prisma.bulkAction.update({
-      where: { id: bulkActionId },
-      data: {
-        successCount: { increment: success },
-        failedCount: { increment: failed },
-        skippedCount: { increment: skipped },
-        remainingBatches: { decrement: 1 },
-      },
-    });
-    
+      // Update bulk action stats
+      await bulkActionRepository.updateBulkActionStats(bulkActionId, success, failed, skipped);
 
-    logger.info(`Batch Completed: Success: ${success}, Failed: ${failed}, Skipped: ${skipped}`);
+      logger.info(`Batch Completed: Success: ${success}, Failed: ${failed}, Skipped: ${skipped}`);
 
-    const bulkAction = await prisma.bulkAction.findUnique({
-        where: { id: bulkActionId },
-        select: { remainingBatches: true },
-      })
-
+      // Check if all batches are processed
+      const bulkAction = await bulkActionRepository.getRemainingBatches(bulkActionId);
 
       if (bulkAction?.remainingBatches === 0) {
-        await prisma.bulkAction.update({
-          where: { id: bulkActionId },
-          data: { status: "Completed" },
-        });
+        await bulkActionRepository.markBulkActionCompleted(bulkActionId);
         logger.info(`Bulk Action ${bulkActionId} marked as Completed.`);
       }
+    } catch (error: any) {
+      logger.error(`Error processing batch: ${error.message}`);
+    }
   },
-  { connection }
+  { connection: redisClient }
 );
 
 logger.info("Batch Worker is running...");
+
+export default batchWorker;

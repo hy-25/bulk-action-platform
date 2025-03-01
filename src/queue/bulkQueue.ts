@@ -1,27 +1,13 @@
 import { Queue } from "bullmq";
-import { Redis } from "ioredis";
-import { config } from "dotenv";
-import logger from "../utils/logger"; // Import the logger
-import { BULK_ACTION_QUEUE } from "./constants";
+import logger from "../utils/logger";
 
-config();
+import redisClient from "../config/redisClient";
+import { BULK_ACTION_QUEUE } from "../constants/queueConstants";
 
-logger.info("Initializing Redis connection for BullMQ...");
+logger.info("Initializing Bulk Action Queue...");
 
-const redisConnection = new Redis(process.env.REDIS_URL!, {
-  maxRetriesPerRequest: null,
-});
-
-redisConnection.on("connect", () => {
-  logger.info("Connected to Redis successfully.");
-});
-
-redisConnection.on("error", (err) => {
-  logger.error(`Redis connection error: ${err.message}`);
-});
-
-export const bulkActionQueue = new Queue(BULK_ACTION_QUEUE, { connection: redisConnection });
+export const bulkActionQueue = new Queue(BULK_ACTION_QUEUE, { connection: redisClient });
 
 logger.info("Bulk Action Queue initialized.");
 
-export default redisConnection;
+export default bulkActionQueue;
