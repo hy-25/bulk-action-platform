@@ -1088,22 +1088,23 @@ const data = [{"email":"user9096575@example.com", "updates":{"status" : "active"
 
 export const options = {
   stages: [
-    { duration: "30s", target: 5 },  // Ramp up to 5 users in 30 sec
-    { duration: "1m", target: 10 },   // Stay at 10 users for 1 min
-    { duration: "30s", target: 0 },   // Ramp down to 0 users
+    { duration: "30s", target: 10 },  
+    { duration: "1m", target: 20 },   
+    { duration: "30s", target: 0 },   
   ],
 };
 
+
 export default function () {
   const url = "http://localhost:3000/api/bulk-actions";
-  const batchSize = 500; // Number of entities per request
+  const batchSize = 400 + Math.floor(100 * Math.random()); // Number of entities per request
 
   const payload = JSON.stringify({
     entity: "Contact",
     action: "Update",
-    accountId : Math.floor(100*Math.random()),
+    accountId: Math.floor(100 * Math.random()) + 100,
     data: Array.from({ length: batchSize }, (_, i) => ({
-      email: data[i].email,
+      email:  data[i].email,// Use sample email format
       updates: { status: "inactive" },
     })),
   });
@@ -1112,9 +1113,14 @@ export default function () {
 
   const res = http.post(url, payload, params);
 
-  check(res, {
+  // Check if the request failed
+  const success = check(res, {
     "Status is 201": (r) => r.status === 201,
   });
+
+  if (!success) {
+    console.error(`❌ Request failed! Status: ${res.status}, Body: ${res.body}`);
+  }
 
   sleep(1); // 1 second wait before the next request
 }
